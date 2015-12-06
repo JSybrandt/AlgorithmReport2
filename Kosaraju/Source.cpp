@@ -15,6 +15,8 @@ using namespace std;
 
 const string FILE_PATH = "twitter_combined.txt";
 const int MAX_NODES = 81306;
+//const string FILE_PATH = "smallExample.txt";
+//const int MAX_NODES = 8;
 
 struct vertex{
 	vertex(){visited=false;assigned=-1;}
@@ -28,10 +30,6 @@ unordered_map<int,vertex> buildGraph(string sourceFile){
 	fstream fin(sourceFile,ios::in);
 	int s,d;
 	while(fin>>s>>d){
-		if(nodes.count(s)==0)
-			nodes[s]=vertex();
-		if(nodes.count(d))
-			nodes[d]=vertex();
 		nodes[s].children.push_back(d);
 		nodes[d].parents.push_back(s);
 	}
@@ -40,21 +38,16 @@ unordered_map<int,vertex> buildGraph(string sourceFile){
 }
 
 
-unordered_map<int,vertex>  buildGraph(string sourceFile, unordered_set<int> legalNodes){
+unordered_map<int,vertex>  buildGraph(unordered_map<int,vertex> sourceNodes, unordered_set<int> legalNodes){
 	unordered_map<int,vertex> nodes;
-	fstream fin(sourceFile,ios::in);
-	int s,d;
-	while(fin>>s>>d){
-		if(legalNodes.count(s)==1 && legalNodes.count(d)==1){
-			if(nodes.count(s)==0)
-				nodes[s]=vertex();
-			if(nodes.count(d))
-				nodes[d]=vertex();
-			nodes[s].children.push_back(d);
-			nodes[d].parents.push_back(s);
-		}
+	for(int node : legalNodes){
+		for(int child : sourceNodes[node].children)
+			if(legalNodes.count(child)==1)
+				nodes[node].children.push_back(child);
+		for(int parent : sourceNodes[node].parents)
+			if(legalNodes.count(parent)==1)
+				nodes[node].parents.push_back(parent);
 	}
-	fin.close();
 	return nodes;
 }
 
@@ -82,8 +75,8 @@ void visit(unordered_map<int,vertex> & nodes,int i, list<int>& l){
 	
 	if(!nodes[i].visited){
 		nodes[i].visited=true;
-		for(int c = 0; c < nodes[i].children.size(); c++){
-			visit(nodes,nodes[i].children[c],l);
+		for(int child : nodes[i].children){
+			visit(nodes,child,l);
 		}
 		l.push_front(i);
 	}
@@ -100,26 +93,24 @@ void assign(unordered_map<int,vertex> & nodes, int u, int root){
 
 int main(){
 	
-	srand(time(0));
+	//srand(time(0));
 	fstream fout("results.txt",ios::out);
-
+	cout<<"Started:";
 	unordered_map<int,vertex> root = buildGraph(FILE_PATH);
-
+	cout<<"Built Root"<<endl;
 	for(int size = 10; size <= MAX_NODES; size*=10){
-		vector<double> times;
 		for(int i=0;i<10;i++){
-			
 			unordered_set<int> legalNodes = getSetOfNodes(root,size);
-			unordered_map<int,vertex> nodes = buildGraph(FILE_PATH, legalNodes);
+			unordered_map<int,vertex> nodes = buildGraph(root, legalNodes);
 
 			auto start = std::chrono::high_resolution_clock::now();
 
-			for(int nodeIndex : legalNodes){
-				list<int> l;
+			list<int> l;
+			for(int nodeIndex : legalNodes){			
 				visit(nodes,nodeIndex,l);
-				for(int u : l){
-					assign(nodes,u,u);
-				}
+			}
+			for(int u : l){
+				assign(nodes,u,u);
 			}
 
 			auto finish = std::chrono::high_resolution_clock::now();
@@ -137,12 +128,5 @@ int main(){
 	
 	fout.close();
 	
-
-	
-	
-	
-
-		
-
 	return 0;
 }
